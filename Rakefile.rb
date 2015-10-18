@@ -1,9 +1,9 @@
-ENV['HOMEBREW_CASK_OPTS'] = "--appdir=/Applications"
+ENV['HOMEBREW_CASK_OPTS'] = '--appdir=/Applications'
+ENV['USER_GIT_REPOSITORY_DIRECTORY'] = "#{Dir.pwd}/.."
 
 def brew_install(package, *args)
   versions = `brew list #{package} --versions`
   options = args.last.is_a?(Hash) ? args.pop : {}
-
   # if brew exits with error we install tmux
   if versions.empty?
     sh "brew install #{package} #{args.join ' '}"
@@ -35,7 +35,7 @@ def brew_cask_install(package, *options)
   output = `brew cask info #{package}`
   return unless output.include?('Not installed')
 
-  sh "brew cask install --binarydir=#{`brew --prefix`.chomp}/bin #{package} #{options.join ' '}"
+  sh("brew cask install --binarydir=#{`brew --prefix`.chomp}/bin #{package} #{options.join ' '}")
 end
 
 def step(description)
@@ -50,12 +50,10 @@ def app_path(name)
   ["~#{path}", path].each do |full_path|
     return full_path if File.directory?(full_path)
   end
-
-  return nil
 end
 
 def app?(name)
-  return !app_path(name).nil?
+  !app_path(name).nil?
 end
 
 def get_backup_path(path)
@@ -65,7 +63,7 @@ def get_backup_path(path)
     if number > 1
       backup_path = "#{backup_path}#{number}"
     end
-    if File.exists?(backup_path) || File.symlink?(backup_path)
+    if File.exist?(backup_path) || File.symlink?(backup_path)
       number += 1
       next
     end
@@ -77,7 +75,7 @@ end
 def link_file(original_filename, symlink_filename)
   original_path = File.expand_path(original_filename)
   symlink_path = File.expand_path(symlink_filename)
-  if File.exists?(symlink_path) || File.symlink?(symlink_path)
+  if File.exist?(symlink_path) || File.symlink?(symlink_path)
     if File.symlink?(symlink_path)
       symlink_points_to_path = File.readlink(symlink_path)
       return if symlink_points_to_path == original_path
@@ -118,6 +116,18 @@ def unlink_file(original_filename, symlink_filename)
   end
 end
 
+namespace :action do
+  task :getDirectory do
+    STDOUT.puts "Please Offer Your Default Git Repository Directory:(default is '#{ENV['USER_GIT_REPOSITORY_DIRECTORY']}')"
+    input = STDIN.gets.strip
+    if input == ''
+    else
+      ENV['USER_GIT_REPOSITORY_DIRECTORY'] = input
+    end
+    STDOUT.puts "OK We Will Use Directory: '#{ENV['USER_GIT_REPOSITORY_DIRECTORY']}'";
+  end
+end
+
 namespace :install do
   desc 'Update or Install Brew'
   task :brew do
@@ -127,12 +137,37 @@ namespace :install do
     end
   end
 
-  desc 'Install Homebrew Cask'
-  task :brew_cask do
-    step 'Homebrew Cask'
-    system('brew untap phinze/cask') if system('brew tap | grep phinze/cask > /dev/null')
-    unless system('brew tap | grep caskroom/cask > /dev/null') || system('brew tap caskroom/cask')
-      abort "Failed to tap caskroom/cask in Homebrew."
+  desc 'Install prezto'
+  task :prezto do
+    step 'prezto'
+    if Dir.exist?(Dir.home + "/.zprezto")
+    else
+      unless system("git clone --recursive https://github.com/sorin-ionescu/prezto.git '${ZDOTDIR:-$HOME}/.zprezto'")
+        abort 'failed to install prezto'
+      end
+      unless system("
+                    setopt EXTENDED_GLOB
+                    for rcfile in '${ZDOTDIR:-$HOME}'/.zprezto/runcoms/^README.md(.N); do
+                     ln -s '$rcfile' '${ZDOTDIR:-$HOME}/.${rcfile:t}'
+                    done
+                    ")
+        abort 'failed to install prezto'
+      end
+      unless system("chsh -s /bin/zsh")
+        abort 'failed to install prezto'
+      end
+    end
+  end
+
+  desc 'Install YouCompleteMe'
+  task :YouCompleteMe do
+    step 'YouCompleteMe'
+    brew_install 'CMake'
+    if Dir.exist?("#{ENV['USER_GIT_REPOSITORY_DIRECTORY']}/YouCompleteMe")
+    else
+      unless system("git clone https://github.com/Valloric/YouCompleteMe.git #{ENV['USER_GIT_REPOSITORY_DIRECTORY']}/YouCompleteMe && cd #{ENV['USER_GIT_REPOSITORY_DIRECTORY']}/YouCompleteMe && git submodule update --init --recursive && ./install.sh --clang-completer --system-libclang && cd .. ");
+        abort 'failed to install YouCompleteMe'
+      end
     end
   end
 
@@ -140,14 +175,6 @@ namespace :install do
   task :the_silver_searcher do
     step 'the_silver_searcher'
     brew_install 'the_silver_searcher'
-  end
-
-  desc 'Install iTerm'
-  task :iterm do
-    step 'iterm2'
-    unless app? 'iTerm'
-      brew_cask_install 'iterm2'
-    end
   end
 
   desc 'Install ctags'
@@ -162,47 +189,30 @@ namespace :install do
     brew_install 'reattach-to-user-namespace'
   end
 
-  desc 'Install tmux'
-  task :tmux do
-    step 'tmux'
-    # tmux copy-pipe function needs tmux >= 1.8
-    brew_install 'tmux', :requires => '>= 2.1'
+  desc 'Install autojump'
+  task :autojump do
+    step 'autojump'
+    brew_install 'autojump'
   end
 
-  desc 'Install MacVim'
-  task :macvim do
-    step 'MacVim'
-    unless app? 'MacVim'
-      brew_cask_install 'macvim'
-    end
-
-    bin_dir = File.expand_path('~/bin')
-    bin_vim = File.join(bin_dir, 'vim')
-    unless ENV['PATH'].split(':').include?(bin_dir)
-      puts 'Please add ~/bin to your PATH, e.g. run this command:'
-      puts
-      puts %{  echo 'export PATH="~/bin:$PATH"' >> ~/.bashrc}
-      puts
-      puts 'The exact command and file will vary by your shell and configuration.'
-      puts 'You may need to restart your shell.'
-    end
-
-    FileUtils.mkdir_p(bin_dir)
-    unless File.executable?(bin_vim)
-      File.open(bin_vim, 'w', 0744) do |io|
-        io << <<-SHELL
-#!/bin/bash
-exec /Applications/MacVim.app/Contents/MacOS/Vim "$@"
-        SHELL
-      end
-    end
+  desc 'Install tig'
+  task :tig do
+    step 'tig'
+    brew_install 'tig'
   end
 
-  desc 'Install Vundle'
-  task :vundle do
-    step 'vundle'
-    install_github_bundle 'VundleVim','Vundle.vim'
-    sh '~/bin/vim -c "PluginInstall!" -c "q" -c "q"'
+  desc 'Install NeoVim'
+  task :neovim do
+    step 'NeoVim'
+    brew_install 'neovim/neovim/neovim'
+  end
+
+  desc 'Install vim-plug'
+  task :vim-plug do
+    step 'vim-plug'
+    sh 'curl -fLo ~/.config/nvim/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+    sh 'neovim -c "PlugInstall!" -c "q" -c "q"'
   end
 end
 
@@ -215,30 +225,30 @@ end
 
 COPIED_FILES = filemap(
   'vimrc.local'         => '~/.vimrc.local',
-  'vimrc.bundles.local' => '~/.vimrc.bundles.local',
-  'tmux.conf.local'     => '~/.tmux.conf.local'
+  'vimrc.bundles.local' => '~/.vimrc.bundles.local'
 )
 
 LINKED_FILES = filemap(
-  'vim'           => '~/.vim',
-  'tmux.conf'     => '~/.tmux.conf',
-  'vimrc'         => '~/.vimrc',
-  'vimrc.bundles' => '~/.vimrc.bundles'
+  '/usr/local/bin/nvim' => '/usr/local/bin/vim',
+  'nvim'                => '~/.config/nvim',
+  'tigrc'               => '~/.tigrc',
+  "#{ENV['USER_GIT_REPOSITORY_DIRECTORY']}/YouCompleteMe" => '~/.config/nvim/plugged/YouCompleteMe'
 )
 
 desc 'Install these config files.'
 task :install do
   Rake::Task['install:brew'].invoke
-  Rake::Task['install:brew_cask'].invoke
+  Rake::Task['install:prezto'].invoke
+  Rake::Task['install:YouCompleteMe'].invoke
   Rake::Task['install:the_silver_searcher'].invoke
-  Rake::Task['install:iterm'].invoke
   Rake::Task['install:ctags'].invoke
   Rake::Task['install:reattach_to_user_namespace'].invoke
-  Rake::Task['install:tmux'].invoke
-  Rake::Task['install:macvim'].invoke
+  Rake::Task['install:neovim'].invoke
+  Rake::Task['install:autojump'].invoke
+  Rake::Task['install:tig'].invoke
 
-  # TODO install gem ctags?
-  # TODO run gem ctags?
+  # TODO: install gem ctags?
+  # TODO: run gem ctags?
 
   step 'symlink'
 
@@ -250,26 +260,26 @@ task :install do
     cp orig, copy, :verbose => true unless File.exist?(copy)
   end
 
-  # Install Vundle and bundles
-  Rake::Task['install:vundle'].invoke
+  # Install vim-plug and bundles
+  Rake::Task['install:vim-plug'].invoke
 
-  step 'iterm2 colorschemes'
-  colorschemes = `defaults read com.googlecode.iterm2 'Custom Color Presets'`
+  step 'Terminal.app colorschemes'
+  colorschemes = `defaults read com.apple.terminal 'Default Window Settings'`
   dark  = colorschemes !~ /Solarized Dark/
   light = colorschemes !~ /Solarized Light/
-  sh('open', '-a', '/Applications/iTerm.app', File.expand_path('iterm2-colors-solarized/Solarized Dark.itermcolors')) if dark
-  sh('open', '-a', '/Applications/iTerm.app', File.expand_path('iterm2-colors-solarized/Solarized Light.itermcolors')) if light
+  sh('open', '-a', '/Applications/Utilities/Terminal.app', File.expand_path('osx-terminal.app-colors-solarized/Solarized Dark.terminal')) if dark
+  sh('open', '-a', '/Applications/Utilities/Terminal.app', File.expand_path('osx-terminal.app-colors-solarized/Solarized Light.terminal')) if light
 
-  step 'iterm2 profiles'
+  step 'Terminal.app profiles'
   puts
-  puts "  Your turn!"
-  puts
-  puts "  Go and manually set up Solarized Light and Dark profiles in iTerm2."
-  puts "  (You can do this in 'Preferences' -> 'Profiles' by adding a new profile,"
-  puts "  then clicking the 'Colors' tab, 'Load Presets...' and choosing a Solarized option.)"
-  puts "  Also be sure to set Terminal Type to 'xterm-256color' in the 'Terminal' tab."
-  puts
-  puts "  Enjoy!"
+  puts 'Your turn!'
+  puts ' '
+  puts 'Go and manually set up Solarized Light and Dark profiles in Terminal.app.'
+  puts "(You can do this in 'Preferences' -> 'Profiles' by adding a new profile,"
+  puts 'and make it as a default.)'
+  puts "Also be sure to set Terminal.app Type to 'xterm-256color' in the 'Terminal' tab."
+  puts ' '
+  puts 'Enjoy!'
   puts
 end
 
@@ -286,22 +296,6 @@ task :uninstall do
   COPIED_FILES.each do |orig, copy|
     rm_f copy, :verbose => true if File.read(orig) == File.read(copy)
   end
-
-  step 'homebrew'
-  puts
-  puts 'Manually uninstall homebrew if you wish: https://gist.github.com/mxcl/1173223.'
-
-  step 'iterm2'
-  puts
-  puts 'Run this to uninstall iTerm:'
-  puts
-  puts '  rm -rf /Applications/iTerm.app'
-
-  step 'macvim'
-  puts
-  puts 'Run this to uninstall MacVim:'
-  puts
-  puts '  rm -rf /Applications/MacVim.app'
 end
 
 task :default => :install

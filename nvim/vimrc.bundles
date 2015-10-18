@@ -1,0 +1,52 @@
+" Bundles here are part of the core Maximum Awesome setup
+" Do NOT add bundles to this list, as they might get removed when you upgrade
+" Maximum Awesome.
+" Please create ~/.vimrc.bundles.local and add any extra bundles you want there
+Plug 'slim-template/vim-slim'
+Plug 'tpope/vim-endwise'
+Plug 'tpope/vim-pastie'
+Plug 'tpope/vim-ragtag'
+Plug 'tpope/vim-repeat'
+Plug 'tpope/vim-unimpaired'
+Plug 'tpope/vim-vividchalk'
+Plug 'eventualbuddha/vim-protobuf'
+
+" ruby
+Plug 'vim-ruby/vim-ruby'
+Plug 'tpope/vim-rake'
+Plug 'tpope/vim-bundler'
+Plug 'tpope/vim-rvm'
+Plug 'tpope/vim-rbenv'
+
+" javascript
+Plug 'pangloss/vim-javascript'
+Plug 'moll/vim-node'
+Plug 'posva/vim-vue'
+
+" style
+Plug 'nathanaelkane/vim-indent-guides'
+Plug 'altercation/vim-colors-solarized'
+
+" editor
+Plug 'austintaylor/vim-indentobject'
+
+" tool
+Plug 'SirVer/ultisnips'
+Plug 'honza/vim-snippets'
+Plug 'neomake/neomake'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
+Plug 'Valloric/YouCompleteMe'
+Plug 'kien/ctrlp.vim'
+Plug 'majutsushi/tagbar'
+Plug 'scrooloose/nerdtree'
+Plug 'rking/ag.vim'
+Plug 'tpope/vim-surround'
+Plug 'vim-scripts/Align'
+Plug 'tpope/vim-commentary'
+Plug 'Raimondi/delimitMate'
+Plug 'sjl/gundo.vim'
+Plug 'vim-scripts/greplace.vim'
+Plug 'vim-scripts/matchit.zip'
+Plug 'airblade/vim-gitgutter'
+Plug 'tpope/vim-fugitive'

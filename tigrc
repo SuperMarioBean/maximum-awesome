@@ -1,0 +1,14 @@
+set main-view	= line-number:no,interval=5 id:yes date:default author:full commit-title:yes,graph,refs,overflow=no
+
+set wrap-lines			= yes		# Wrap long lines in pager views?
+
+bind main	p	?git push %(branch)
+bind main	f	!git fetch %(remote) %(branch)
+bind main	b	!git rebase %(branch)
+bind main	B	?git rebase -i %(commit)
+bind main	!	!git revert %(commit)
+bind main	\	?git format-patch -1 %(commit)
+bind main	|	?git format-patch %(commit)
+bind main	a	?git am *.patch
+
+bind status	~	?rm %(file)
